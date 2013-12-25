@@ -3,6 +3,11 @@
 #include <wx/fontenum.h>
 #include <wx/fontmap.h>
 #include <wx/fontdlg.h>
+
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
+
 static wxFont g_font;
 
 class CPaintPanel:public CPaintPanelBase
@@ -108,6 +113,66 @@ public:
 
 	  void Draw()
 	  {
+		  FT_Library  library;
+		  FT_Error error;
+		  FT_Face     face;
+		  FT_UInt glyph_index;
+		  FT_UInt font_size = 32;
+		  FT_ULong char_code = 0x6211;//"ÎÒ";
+		  wxString str = "ÎÒÃÇ";
+		  char_code = str.GetChar(1);
+
+		  error = FT_Init_FreeType( &library );
+		  if (error)
+		  {
+			  wxLogDebug("error!!!\n");
+			  return;
+		  }
+
+		  error = FT_New_Face( library,
+			  "d:\\tmp\\font\\simkai.ttf",
+			  0,
+			  &face );
+		  if ( error == FT_Err_Unknown_File_Format )
+		  {
+			  wxLogDebug("UnSupport font file");
+			  return;
+		  }
+		  else if ( error )
+		  {
+			  wxLogDebug("Unknow errror");
+			  return;
+		  }
+
+		  error = FT_Set_Pixel_Sizes(
+			  face,   /* handle to face object */
+			  0,      /* pixel_width           */
+			  font_size );   /* pixel_height          */
+
+		   error = FT_Load_Char( face, char_code, FT_LOAD_RENDER);
+
+		   FT_GlyphSlot  slot = face->glyph;
+		   FT_Bitmap *pBitmap = &slot->bitmap;
+
+		   wxString strResult;
+		   for (int i=0; i<pBitmap->rows; i++)
+		   {
+			   for (int j=0; j<pBitmap->width; j++)
+			   {
+				   if (pBitmap->buffer[i*pBitmap->pitch + j]==0)
+					   strResult += " ";
+				   else
+					   strResult += "*";
+			   }
+			   strResult += "\n";
+		   }
+
+		   m_textCtrlResult->Clear();
+		   m_textCtrlResult->AppendText(strResult);
+	  }
+
+	  void Draw1()
+	  {
 		  wxFont font = g_font;
 		  int font_size = font.GetPointSize();
 		  font_size = 16;
@@ -166,16 +231,24 @@ public:
 
 	  virtual void OnSelectFont( wxCommandEvent& event ) 
 	  {
+#if 0
 		  wxFontDialog dlg;
 		  dlg.Create(this);
 		  if (dlg.ShowModal() == wxID_OK) {
 			  g_font = dlg.GetFontData().GetChosenFont();
 			  Draw();
 		  }
+#else
+		  wxFileDialog dlg(this, _("Open Font file"), "", "", "True Type(*.ttf)|*.ttf;OTF(*.otf)", wxFD_OPEN|wxFD_FILE_MUST_EXIST);
+		  if (dlg.ShowModal() == wxID_OK) {
+			  m_strFontPath = dlg.GetPath();
+		  }
+#endif
 	  }
 
 
-
+protected:
+	wxString m_strFontPath;
 };
 
 class CMainFrame: public CMainFrameBase
